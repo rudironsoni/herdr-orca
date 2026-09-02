@@ -1,0 +1,20 @@
+path: ['terminal', 'list'],
+    summary: 'List live Orca-managed terminals',
+    usage: 'orca terminal list [--worktree <selector>] [--limit <n>] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'worktree', 'limit']
+  },
+  {
+    path: ['terminal', 'show'],
+    summary: 'Show terminal metadata and preview',
+    usage: 'orca terminal show [--terminal <handle>] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'terminal']
+  },
+  {
+    path: ['terminal', 'read'],
+    summary: 'Read bounded terminal output',
+    usage: 'orca terminal read [--terminal <handle>] [--cursor <n>] [--limit <n>] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'terminal', 'cursor', 'limit'],
+    notes: [
+      'Omit --terminal to target the active terminal in the current worktree.',
+      'Use --cursor with the nextCursor value from a previous read to get only new output since that read.',
+      'Use --limit to request more retained lines for long 

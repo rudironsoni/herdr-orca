@@ -1,0 +1,26 @@
+{
+  "client": {
+    "version": "0.8.2",
+    "channel": "stable",
+    "protocol": 20,
+    "binary": "/opt/homebrew/bin/herdr",
+    "session": "rudironsoni"
+  },
+  "server": {
+    "status": "running",
+    "running": true,
+    "version": "0.8.2",
+    "protocol": 20,
+    "capabilities": {
+      "live_handoff": true,
+      "detached_server_daemon": true
+    },
+    "compatible": true,
+    "socket": "/Users/rudimar.ronsoni@feverup.com/.config/herdr/sessions/rudironsoni/herdr.sock",
+    "session": "rudironsoni",
+    "restart_needed": false
+  },
+  "update": {
+    "restart_needed": false
+  }
+}

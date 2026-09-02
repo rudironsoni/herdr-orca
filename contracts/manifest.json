@@ -1,0 +1,11 @@
+{
+  "herdr": {
+    "18": { "source": "herdrdev/herdr@8843bbb0", "protocol": 18 },
+    "19": { "source": "herdrdev/herdr@v0.8.0", "protocol": 19 },
+    "20": { "source": "live herdr 0.8.2", "protocol": 20 }
+  },
+  "orca": {
+    "1.4.170": { "source": "horca tag v1.4.170 CLI spec", "includeVisualLayoutsFlag": false },
+    "1.4.195": { "source": "this machine /Applications/Orca.app", "includeVisualLayoutsFlag": true }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "name": "herdr-orca",
+  "version": "0.1.0",
+  "description": "Herdr plugin that attaches stock Orca to Herdr-owned terminals.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "herdr-orca": "./dist/herdr-orca.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@11.24.0",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "doctor": "node dist/herdr-orca.mjs doctor",
+    "pack:plugin": "node scripts/pack-plugin.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "typescript": "^5.9.2"
+  }
+}

@@ -1,0 +1,17 @@
+orca terminal list
+
+Usage: orca terminal list [--worktree <selector>] [--limit <n>] [--include-visual-layouts] [--json]
+
+List live Orca-managed terminals
+
+Options:
+  --help                 Show this help message
+  --json                 Emit machine-readable JSON
+  --pairing-code
+  --environment
+  --worktree <selector>  Worktree selector such as identity:<identity>, id:<repo-id>::<path>, name:<displayName>, branch:<branch>, issue:<number>, path:<path>, or active/current
+  --limit <n>            Maximum number of rows to return
+  --include-visual-layouts Include tab and pane topology in JSON output
+
+Notes:
+  JSON omits visualLayouts by default; pass --include-visual-layouts when machine-readable tab and pane topology is required.
