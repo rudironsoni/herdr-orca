@@ -4,11 +4,6 @@ on:
   release:
     types: [published]
   workflow_dispatch:
-    inputs:
-      tag:
-        description: Git tag to publish to GitHub Packages
-        required: true
-        default: v0.1.0
 
 permissions:
   contents: read
@@ -21,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.release.tag_name || inputs.tag }}
+          ref: ${{ github.event.release.tag_name || github.sha }}
       - uses: pnpm/action-setup@v6
         with:
           version: 11.24.0
@@ -34,6 +29,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
       - run: pnpm build
-      - run: pnpm publish --no-git-checks --access public
+      - run: pnpm publish --no-git-checks --access public --registry https://npm.pkg.github.com
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_CONFIG_PROVENANCE: "false"
