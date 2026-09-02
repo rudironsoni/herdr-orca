@@ -1,9 +1,26 @@
 {
-  "name": "herdr-orca",
+  "name": "@rudironsoni/herdr-orca",
   "version": "0.1.0",
   "description": "Herdr plugin that attaches stock Orca to Herdr-owned terminals.",
   "license": "MIT",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rudironsoni/herdr-orca.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
+  },
+  "files": [
+    "dist/herdr-orca.mjs",
+    "src",
+    "herdr-plugin.toml",
+    "README.md",
+    "LICENSE",
+    "CONTEXT.md",
+    "AGENTS.md"
+  ],
   "bin": {
     "herdr-orca": "./dist/herdr-orca.mjs"
   },

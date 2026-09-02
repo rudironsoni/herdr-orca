@@ -7,7 +7,7 @@
   "changelog-path": "CHANGELOG.md",
   "packages": {
     ".": {
-      "package-name": "herdr-orca"
+      "package-name": "@rudironsoni/herdr-orca"
     }
   }
 }

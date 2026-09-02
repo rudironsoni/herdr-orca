@@ -40,10 +40,13 @@ GitHub Actions:
 
 - `.github/workflows/ci.yml` runs `pnpm test` and `pnpm build` on Ubuntu and macOS (Node 22). It uploads `dist/herdr-orca.mjs` as a workflow artifact.
 - `.github/workflows/release.yml` uses `googleapis/release-please-action@v5`. Conventional Commits on `main` open a release PR that writes `CHANGELOG.md`, tags, and creates a GitHub Release. The release job attaches `herdr-orca-<version>-plugin.zip`.
+- `.github/workflows/packages.yml` publishes `@rudironsoni/herdr-orca` to GitHub Packages (`https://npm.pkg.github.com`) when a GitHub Release is published.
+
+```bash
+pnpm add @rudironsoni/herdr-orca --registry=https://npm.pkg.github.com
+```
 
 CI does not start Herdr or Orca.
-
-Skipped: live two-app attach, launchd, worktree sync, splits, `@herdr/sdk`. GitHub remote is not set (`origin/main` is gone).
 
 ## SDK
 
