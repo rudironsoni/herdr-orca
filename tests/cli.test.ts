@@ -28,4 +28,10 @@ describe("parseArgs", () => {
     assert.equal(parsed.kind, "command");
     if (parsed.kind === "command") assert.equal(parsed.command, "attach");
   });
+
+  it("parses launch-agent", () => {
+    const parsed = parseArgs(["launch-agent", "--agent", "claude"]);
+    assert.equal(parsed.kind, "command");
+    if (parsed.kind === "command") assert.equal(parsed.command, "launch-agent");
+  });
 });

@@ -34,6 +34,10 @@ node dist/herdr-orca.mjs doctor --json
 
 `herdr-orca attach --terminal ID` execs `herdr terminal attach ID --takeover` from an Orca PTY.
 
+`herdr-orca launch-agent [--agent KIND]` creates a Herdr tab from the current Orca PTY, injects `ORCA_*`, then attaches.
+
+`herdr-orca daemon --foreground` polls both sides and writes mappings. Pass `--adopt` to create missing Orca attach tabs. Without `--adopt` it does not flood Orca.
+
 ## CI and release
 
 GitHub Actions:

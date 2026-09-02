@@ -4,6 +4,7 @@ export type HerdrTerminal = {
   tabId: string;
   title: string;
   pluginOwned: boolean;
+  cwd?: string;
 };
 
 export type OrcaLeaf = {

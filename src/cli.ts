@@ -1,4 +1,4 @@
-export type CommandName = "doctor" | "daemon" | "attach";
+export type CommandName = "doctor" | "daemon" | "attach" | "launch-agent";
 
 export type ParsedArgs =
   | { kind: "help" }
@@ -11,7 +11,7 @@ export type ParsedArgs =
       rest: string[];
     };
 
-const COMMANDS = new Set<string>(["doctor", "daemon", "attach"]);
+const COMMANDS = new Set<string>(["doctor", "daemon", "attach", "launch-agent"]);
 
 export function parseArgs(argv: string[]): ParsedArgs {
   if (argv.length === 0 || argv[0] === "-h" || argv[0] === "--help") {
@@ -36,17 +36,20 @@ Usage:
   herdr-orca --help
   herdr-orca doctor [--json]
   herdr-orca attach --terminal ID
+  herdr-orca launch-agent [--agent KIND] [--]
   herdr-orca daemon ensure
+  herdr-orca daemon --foreground [--adopt]
 
 Commands:
-  doctor    Check Node, Herdr protocol floors, and Orca version
-  attach    Attach this Orca PTY to a Herdr terminal
-  daemon    User service (ensure is a no-op until the reconciler ships)
+  doctor         Check Node, Herdr protocol floors, and Orca version
+  attach         Attach this Orca PTY to a Herdr terminal
+  launch-agent   Create a Herdr terminal from this Orca tab, then attach
+  daemon         User service
 
 Examples:
   herdr-orca doctor
-  herdr-orca doctor --json
   herdr-orca attach --terminal term_abc
+  herdr-orca launch-agent --agent claude --
 `;
 }
 
@@ -81,6 +84,23 @@ Options:
 
 Examples:
   herdr-orca attach --terminal term_65a7d78ef8fcb35
+`;
+}
+
+export function launchAgentHelp(): string {
+  return `herdr-orca launch-agent [--agent KIND] [-- AGENT_ARGS...]
+
+Create a Herdr tab for this Orca PTY, inject ORCA_* env, then attach.
+Closing Orca detaches. The Herdr process keeps running.
+
+Options:
+  --agent KIND     Optional Herdr agent kind (claude, codex, grok, ...)
+  --session NAME   Herdr session name
+  --help           Show this help
+
+Examples:
+  herdr-orca launch-agent
+  herdr-orca launch-agent --agent claude --
 `;
 }
 

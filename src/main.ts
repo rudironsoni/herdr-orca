@@ -1,7 +1,17 @@
-import { parseArgs, rootHelp, doctorHelp, attachHelp, flagValue } from "./cli.ts";
+import { parseArgs, rootHelp, doctorHelp, attachHelp, launchAgentHelp, flagValue } from "./cli.ts";
 import { collectDoctorReport, defaultDoctorDeps, formatDoctorText } from "./commands/doctor.ts";
 import { defaultExec, runAttach } from "./commands/attach.ts";
-import { spawnSync } from "node:child_process";
+import { runLaunchAgent } from "./commands/launch-agent.ts";
+import { ensureDaemon, runForeground } from "./commands/daemon.ts";
+import { pluginRootFromEntry, pluginStateDir, distEntry } from "./paths.ts";
+import { openState } from "./state.ts";
+import { defaultRunner, which } from "./run.ts";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+
+function existsDist(pluginRoot: string): boolean {
+  return existsSync(distEntry(pluginRoot));
+}
 
 function writeOut(text: string): void {
   process.stdout.write(text);
@@ -56,13 +66,57 @@ function main(argv: string[]): number {
     if (result.error) writeErr(`${result.error}\n`);
     return result.code;
   }
+  if (parsed.command === "launch-agent" && parsed.help) {
+    writeOut(launchAgentHelp());
+    return 0;
+  }
+  if (parsed.command === "launch-agent") {
+    const dash = parsed.rest.indexOf("--");
+    const flags = dash === -1 ? parsed.rest : parsed.rest.slice(0, dash);
+    const agentArgs = dash === -1 ? [] : parsed.rest.slice(dash + 1);
+    const herdrBin = which("herdr");
+    if (!herdrBin) {
+      writeErr("herdr is not on PATH.\n");
+      return 1;
+    }
+    const pluginRoot = process.env.HERDR_PLUGIN_ROOT ?? pluginRootFromEntry(import.meta.url);
+    const result = runLaunchAgent({
+      env: process.env,
+      cwd: process.cwd(),
+      agent: flagValue(flags, "--agent"),
+      agentArgs,
+      session: flagValue(flags, "--session"),
+      herdrBin,
+      run: defaultRunner,
+      execAttach: (terminalId) =>
+        runAttach(terminalId, { env: process.env, which, exec: defaultExec }).code,
+      openDb: () => openState(join(pluginStateDir(), "sync.sqlite3")),
+    });
+    if (result.error) writeErr(`${result.error}\n`);
+    return result.code;
+  }
   if (parsed.command === "daemon") {
-    const sub = parsed.rest[0] ?? "help";
-    if (sub === "ensure") {
-      writeErr("herdr-orca daemon is not in this build. Startup skips it.\n");
+    const rest = parsed.rest;
+    if (rest.includes("--help") || rest[0] === "help") {
+      writeOut("herdr-orca daemon ensure\nherdr-orca daemon --foreground [--adopt]\n");
       return 0;
     }
-    writeErr("Usage: herdr-orca daemon ensure\n");
+    if (rest[0] === "ensure") {
+      const pluginRoot = process.env.HERDR_PLUGIN_ROOT ?? pluginRootFromEntry(import.meta.url);
+      const out = ensureDaemon({ pluginRoot, spawnDetached: existsDist(pluginRoot) });
+      writeOut(`${out.message}\n`);
+      return out.code;
+    }
+    if (rest.includes("--foreground")) {
+      void runForeground({
+        stateDir: pluginStateDir(),
+        session: process.env.HERDR_SESSION ?? null,
+        adopt: rest.includes("--adopt"),
+        run: defaultRunner,
+      });
+      return 0;
+    }
+    writeErr("Usage: herdr-orca daemon ensure | herdr-orca daemon --foreground [--adopt]\n");
     return 2;
   }
   writeErr(rootHelp());
