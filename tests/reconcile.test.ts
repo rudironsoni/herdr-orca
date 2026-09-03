@@ -111,6 +111,49 @@ describe("reconcile", () => {
     assert.equal(plan.ops[0]?.type, "replace_orca_pty");
   });
 
+  it("does not replace a bare herdr-orca tab", () => {
+    const start = world({
+      orca: [{ tabId: "tab_1", paneKey: "tab_1:a", title: "fever2", command: "herdr-orca" }],
+    });
+    const plan = reconcile(start);
+    assert.equal(
+      plan.ops.some((op) => op.type === "replace_orca_pty"),
+      false,
+    );
+  });
+
+  it("does not replace an Orca tab when the command is unknown", () => {
+    const start = world({
+      orca: [{ tabId: "tab_1", paneKey: "tab_1:a", title: "zsh", command: "" }],
+    });
+    const plan = reconcile(start);
+    assert.equal(
+      plan.ops.some((op) => op.type === "replace_orca_pty"),
+      false,
+    );
+  });
+
+  it("does not adopt a Herdr terminal whose cwd is not an open Orca terminal", () => {
+    const start = world({
+      herdr: [
+        {
+          terminalId: "term_1",
+          paneId: "w1:p1",
+          tabId: "w1:t1",
+          title: "shell",
+          pluginOwned: false,
+          cwd: "/tmp/other",
+        },
+      ],
+      orca: [{ tabId: "tab_1", paneKey: "tab_1:a", title: "fever2", command: "zsh", cwd: "/tmp/fever2" }],
+    });
+    const plan = reconcile(start);
+    assert.equal(
+      plan.ops.some((op) => op.type === "create_orca_attach"),
+      false,
+    );
+  });
+
   it("treats an Orca attach command as the mapping", () => {
     const start = world({
       herdr: [

@@ -3,7 +3,8 @@ import { join } from "node:path";
 import { spawn } from "node:child_process";
 import { homedir } from "node:os";
 import { distEntry, pluginStateDir } from "../paths.ts";
-import { asRecord, defaultRunner, parseJson, readString, which, type Runner } from "../run.ts";
+import { safeCanonical } from "../identity.ts";
+import { asRecord, defaultRunner, parseJson, readString, walkStrings, which, type Runner } from "../run.ts";
 import {
   defaultServiceFs,
   installServiceFiles,
@@ -135,13 +136,14 @@ export function snapshotHerdr(run: Runner, herdrBin: string, session: string | n
     const paneId = readString(rec, "pane_id");
     const tabId = readString(rec, "tab_id");
     if (!terminalId || !paneId || !tabId) continue;
+    const paneCwd = readString(rec, "cwd");
     out.push({
       terminalId,
       paneId,
       tabId,
       title: readString(rec, "label") ?? paneId,
       pluginOwned: Boolean(readString(rec, "plugin_id")),
-      cwd: readString(rec, "cwd") ?? undefined,
+      cwd: paneCwd ? safeCanonical(paneCwd) : undefined,
     });
   }
   return out;
@@ -162,11 +164,20 @@ export function snapshotOrca(run: Runner, orcaBin: string): { reachable: boolean
       const t = asRecord(item);
       const tabId = readString(t, "tabId") ?? readString(t, "id");
       if (!tabId) continue;
+      const handle = readString(t, "handle");
+      const worktree = readString(t, "worktreePath");
+      let command = readString(t, "command") ?? "";
+      if (!command && handle) {
+        const shown = run([orcaBin, "terminal", "show", "--terminal", handle, "--json"]);
+        command = walkStrings(parseJson(shown.stdout), ["command"]).command ?? "";
+      }
       leaves.push({
         tabId,
-        paneKey: readString(t, "paneKey") ?? tabId,
+        paneKey: readString(t, "leafId") ?? readString(t, "paneKey") ?? tabId,
         title: readString(t, "title") ?? tabId,
-        command: readString(t, "command") ?? "",
+        command,
+        cwd: worktree ? safeCanonical(worktree) : undefined,
+        handle: handle ?? undefined,
       });
     }
   }
@@ -187,9 +198,11 @@ export function applyCreateOrcaAttach(
 export function applyReplaceOrcaPty(
   run: Runner,
   orcaBin: string,
-  op: { orcaTabId: string; title: string },
+  op: { orcaTabId: string; title: string; cwd?: string },
 ): void {
-  run([orcaBin, "terminal", "create", "--title", op.title, "--command", "herdr-orca", "--json"]);
+  const args = [orcaBin, "terminal", "create", "--title", op.title, "--command", "herdr-orca", "--json"];
+  if (op.cwd) args.push("--worktree", `path:${op.cwd}`);
+  run(args);
   run([orcaBin, "terminal", "close", `id:${op.orcaTabId}`, "--json"]);
 }
 
@@ -219,7 +232,8 @@ export function tick(
       });
     }
     if (op.type === "replace_orca_pty" && opts.replaceOrcaShells && opts.orcaBin) {
-      applyReplaceOrcaPty(opts.run, opts.orcaBin, op);
+      const leaf = world.orca.find((row) => row.tabId === op.orcaTabId);
+      applyReplaceOrcaPty(opts.run, opts.orcaBin, { ...op, cwd: leaf?.cwd });
     }
   }
   return next;

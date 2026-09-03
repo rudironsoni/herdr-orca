@@ -12,6 +12,8 @@ export type OrcaLeaf = {
   paneKey: string;
   title: string;
   command: string;
+  cwd?: string;
+  handle?: string;
 };
 
 export type Surface = {
@@ -99,7 +101,14 @@ function mappedByOrca(world: World, tabId: string, paneKey: string): Surface | u
 }
 
 function isPluginOrcaCommand(command: string): boolean {
-  return command.includes("herdr-orca attach") || command.includes("herdr-orca launch-agent");
+  return command.includes("herdr-orca");
+}
+
+function herdrCwdIsOpenOnOrca(world: World, cwd: string | undefined): boolean {
+  const orcaCwds = world.orca.map((leaf) => leaf.cwd).filter((item): item is string => Boolean(item));
+  if (orcaCwds.length === 0) return true;
+  if (!cwd) return false;
+  return orcaCwds.includes(cwd);
 }
 
 function pendingCreate(world: World, target: string): Mutation | undefined {
@@ -146,6 +155,7 @@ export function reconcile(world: World): Plan {
     const mapped = mappedByHerdr(world, terminal.terminalId);
     if (mapped?.orcaTabId) continue;
     if (pendingCreate(world, terminal.terminalId)) continue;
+    if (!herdrCwdIsOpenOnOrca(world, terminal.cwd)) continue;
     ops.push({
       type: "create_orca_attach",
       herdrTerminalId: terminal.terminalId,
@@ -156,6 +166,7 @@ export function reconcile(world: World): Plan {
   for (const leaf of world.orca) {
     const mapped = mappedByOrca(world, leaf.tabId, leaf.paneKey);
     if (mapped?.herdrTerminalId) continue;
+    if (!leaf.command) continue;
     if (isPluginOrcaCommand(leaf.command)) continue;
     ops.push({
       type: "replace_orca_pty",

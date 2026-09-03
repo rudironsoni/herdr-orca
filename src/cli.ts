@@ -62,7 +62,7 @@ Attach stock Orca tabs to Herdr-owned terminals.
 
 Usage:
   herdr-orca --help
-  herdr-orca                          (Orca tab: create a Herdr shell and attach)
+  herdr-orca                          (Orca tab: attach in the matching Herdr workspace)
   herdr-orca --agent KIND [--]
   herdr-orca --terminal ID
   herdr-orca doctor [--json]
@@ -76,7 +76,7 @@ Usage:
   herdr-orca daemon --foreground [--adopt]
 
 Commands:
-  (none)         In Orca, create a Herdr shell and attach
+  (none)         In Orca, attach this tab in the matching Herdr workspace
   doctor         Check floors
   attach         Attach this Orca PTY to a Herdr terminal
   open-in-orca   From a Herdr pane, open this terminal in Orca
@@ -133,8 +133,9 @@ Examples:
 export function launchAgentHelp(): string {
   return `herdr-orca launch-agent [--agent KIND] [-- AGENT_ARGS...]
 
-Create a Herdr tab for this Orca PTY, inject ORCA_* env, then attach.
-Closing Orca detaches. The Herdr process keeps running.
+Attach this Orca tab to a Herdr terminal in the workspace for this directory.
+Creates that workspace only when none exists. Closing Orca detaches.
+The Herdr process keeps running.
 
 Options:
   --agent KIND     Optional Herdr agent kind (claude, codex, grok, ...)

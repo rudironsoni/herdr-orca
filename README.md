@@ -41,7 +41,7 @@ herdr plugin uninstall rudironsoni.herdr-orca-sync
 
 | Command | Where | What it does |
 | --- | --- | --- |
-| `herdr-orca` | Orca tab | Create a Herdr shell and attach |
+| `herdr-orca` | Orca tab | Put this open tab in the matching Herdr workspace, then attach |
 | `herdr-orca --agent claude --` | Orca tab | Same, then start Claude |
 | `herdr-orca --terminal ID` | Orca tab | Attach this tab to an existing Herdr terminal |
 | `herdr-orca doctor` | anywhere | Check floors |
@@ -67,11 +67,11 @@ herdr plugin action invoke sync-now --plugin rudironsoni.herdr-orca-sync
 
 ## Run from Orca
 
-Set the tab command to `herdr-orca`. That is a Herdr shell. Closing Orca detaches. The Herdr process keeps running.
+Set the tab command to `herdr-orca`. That tab joins the Herdr workspace for this directory. If that workspace already exists, Herdr does not create another one. Closing Orca detaches. The Herdr process keeps running.
 
 Start an agent in that shell, or use `herdr-orca --agent claude --`.
 
-The daemon can replace an ordinary Orca Cmd-T shell with `herdr-orca` when `replace_orca_shells = true` (default).
+Open Herdr terminals get Orca attach tabs. Open Orca terminals (not every Orca worktree) get a Herdr tab in the matching workspace. The daemon replaces an ordinary Orca Cmd-T shell when it can read the tab command and `replace_orca_shells = true` (default).
 
 ## Config
 
@@ -79,11 +79,11 @@ The daemon can replace an ordinary Orca Cmd-T shell with `herdr-orca` when `repl
 
 ```toml
 [sync]
-adopt = false
+adopt = true
 replace_orca_shells = true
 ```
 
-`adopt = true` lets the daemon create missing Orca attach tabs for Herdr terminals.
+`adopt = true` creates Orca attach tabs for Herdr terminals whose cwd matches an open Orca terminal. It does not open every Herdr workspace.
 
 ## Hooks
 

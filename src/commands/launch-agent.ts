@@ -1,7 +1,7 @@
 import { basename } from "node:path";
 import { agentName, herdrKindForOrcaAgent } from "../agents.ts";
 import { insideHerdr, insideOrca, syncEnvPairs } from "./attach.ts";
-import { gitWorktreeRoot } from "../identity.ts";
+import { gitWorktreeRoot, pathsMatch } from "../identity.ts";
 import { asRecord, parseJson, readString, walkStrings, type Runner } from "../run.ts";
 
 export type LaunchAgentDeps = {
@@ -22,20 +22,49 @@ function herdrArgv(bin: string, session: string | null, rest: string[]): string[
   return [bin, ...rest];
 }
 
-function workspaceIdForCwd(run: Runner, bin: string, session: string | null, cwd: string): string | null {
-  const listed = run(herdrArgv(bin, session, ["workspace", "list"]));
-  const parsed = parseJson(listed.stdout);
-  const root = asRecord(parsed);
-  const result = asRecord(root?.result ?? null);
-  const workspaces = result?.workspaces;
-  if (!Array.isArray(workspaces)) return null;
-  for (const item of workspaces) {
-    const rec = asRecord(item);
+function appendEnv(args: string[], env: NodeJS.ProcessEnv): void {
+  for (const pair of syncEnvPairs(env)) {
+    args.push("--env", pair);
+  }
+}
+
+function paneRecords(run: Runner, bin: string, session: string | null, workspaceId?: string): Record<string, unknown>[] {
+  const rest = workspaceId ? ["pane", "list", "--workspace", workspaceId] : ["pane", "list"];
+  const listed = run(herdrArgv(bin, session, rest));
+  const panes = asRecord(asRecord(parseJson(listed.stdout))?.result ?? null)?.panes;
+  if (!Array.isArray(panes)) return [];
+  const out: Record<string, unknown>[] = [];
+  for (const pane of panes) {
+    const rec = asRecord(pane);
+    if (rec) out.push(rec);
+  }
+  return out;
+}
+
+export function workspaceIdForCwd(run: Runner, bin: string, session: string | null, cwd: string): string | null {
+  for (const rec of paneRecords(run, bin, session)) {
     const id = readString(rec, "workspace_id");
-    if (!id) continue;
-    const got = run(herdrArgv(bin, session, ["workspace", "get", id]));
-    const info = walkStrings(parseJson(got.stdout), ["identity_cwd", "cwd"]);
-    if (info.identity_cwd === cwd || info.cwd === cwd) return id;
+    const paneCwd = readString(rec, "cwd") ?? readString(rec, "foreground_cwd");
+    if (id && paneCwd && pathsMatch(paneCwd, cwd)) return id;
+  }
+  return null;
+}
+
+function surfaceFrom(value: unknown): { workspaceId?: string; paneId?: string; terminalId?: string } {
+  const ids = walkStrings(value, ["workspace_id", "pane_id", "terminal_id"]);
+  return { workspaceId: ids.workspace_id, paneId: ids.pane_id, terminalId: ids.terminal_id };
+}
+
+function firstPaneInWorkspace(
+  run: Runner,
+  bin: string,
+  session: string | null,
+  workspaceId: string,
+): { paneId: string; terminalId?: string } | null {
+  for (const rec of paneRecords(run, bin, session, workspaceId)) {
+    const paneId = readString(rec, "pane_id");
+    if (!paneId) continue;
+    return { paneId, terminalId: readString(rec, "terminal_id") ?? undefined };
   }
   return null;
 }
@@ -52,46 +81,48 @@ export function runLaunchAgent(deps: LaunchAgentDeps): LaunchResult {
   }
   const cwd = gitWorktreeRoot(deps.cwd) ?? deps.cwd;
   let workspaceId = workspaceIdForCwd(deps.run, deps.herdrBin, deps.session, cwd);
+  let paneId: string | undefined;
+  let terminalId: string | undefined;
+  const title = deps.env.ORCA_TAB_TITLE || basename(cwd);
   if (!workspaceId) {
-    const created = deps.run(
-      herdrArgv(deps.herdrBin, deps.session, [
-        "workspace",
-        "create",
-        "--cwd",
-        cwd,
-        "--label",
-        basename(cwd),
-        "--no-focus",
-      ]),
-    );
-    workspaceId = walkStrings(parseJson(created.stdout), ["workspace_id"]).workspace_id ?? null;
+    const createArgs = ["workspace", "create", "--cwd", cwd, "--label", basename(cwd), "--no-focus"];
+    appendEnv(createArgs, deps.env);
+    const created = deps.run(herdrArgv(deps.herdrBin, deps.session, createArgs));
+    const surface = surfaceFrom(parseJson(created.stdout));
+    workspaceId = surface.workspaceId;
+    paneId = surface.paneId;
+    terminalId = surface.terminalId;
+    if (!paneId && workspaceId) {
+      const existing = firstPaneInWorkspace(deps.run, deps.herdrBin, deps.session, workspaceId);
+      paneId = existing?.paneId;
+      terminalId = terminalId ?? existing?.terminalId;
+    }
+  } else {
+    const createArgs = [
+      "tab",
+      "create",
+      "--workspace",
+      workspaceId,
+      "--cwd",
+      cwd,
+      "--label",
+      title,
+      "--no-focus",
+    ];
+    appendEnv(createArgs, deps.env);
+    const createdTab = deps.run(herdrArgv(deps.herdrBin, deps.session, createArgs));
+    const ids = walkStrings(parseJson(createdTab.stdout), ["pane_id", "terminal_id"]);
+    paneId = ids.pane_id;
+    terminalId = ids.terminal_id;
   }
   if (!workspaceId) {
     return { code: 1, error: `Failed to create Herdr workspace for ${cwd}` };
   }
-  const title = deps.env.ORCA_TAB_TITLE || basename(cwd);
-  const createArgs = [
-    "tab",
-    "create",
-    "--workspace",
-    workspaceId,
-    "--cwd",
-    cwd,
-    "--label",
-    title,
-    "--no-focus",
-  ];
-  for (const pair of syncEnvPairs(deps.env)) {
-    createArgs.push("--env", pair);
+  if (!paneId) {
+    return { code: 1, error: "herdr did not return a pane_id." };
   }
-  const createdTab = deps.run(herdrArgv(deps.herdrBin, deps.session, createArgs));
-  const ids = walkStrings(parseJson(createdTab.stdout), ["pane_id", "terminal_id", "tab_id"]);
-  if (!ids.pane_id) {
-    return { code: 1, error: "herdr tab create did not return a pane_id." };
-  }
-  let terminalId = ids.terminal_id;
   if (!terminalId) {
-    const pane = deps.run(herdrArgv(deps.herdrBin, deps.session, ["pane", "get", ids.pane_id]));
+    const pane = deps.run(herdrArgv(deps.herdrBin, deps.session, ["pane", "get", paneId]));
     terminalId = walkStrings(parseJson(pane.stdout), ["terminal_id"]).terminal_id;
   }
   if (!terminalId) {
@@ -105,11 +136,11 @@ export function runLaunchAgent(deps: LaunchAgentDeps): LaunchResult {
     const start = [
       "agent",
       "start",
-      agentName(kind, ids.pane_id),
+      agentName(kind, paneId),
       "--kind",
       kind,
       "--pane",
-      ids.pane_id,
+      paneId,
     ];
     if (deps.agentArgs.length > 0) start.push("--", ...deps.agentArgs);
     const started = deps.run(herdrArgv(deps.herdrBin, deps.session, start));
@@ -118,5 +149,5 @@ export function runLaunchAgent(deps: LaunchAgentDeps): LaunchResult {
     }
   }
   const code = deps.execAttach(terminalId);
-  return { code, terminalId, paneId: ids.pane_id };
+  return { code, terminalId, paneId };
 }

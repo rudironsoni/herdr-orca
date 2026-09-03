@@ -106,4 +106,26 @@ describe("daemon tick", () => {
     });
     assert.equal(calls.length, 0);
   });
+
+  it("does not replace an Orca tab with an empty command", () => {
+    const world: World = {
+      herdr: [],
+      orca: [{ tabId: "tab_1", paneKey: "tab_1:a", title: "zsh", command: "" }],
+      orcaReachable: true,
+      mappings: [],
+      mutations: [],
+      orcaClose: "detach",
+    };
+    const calls: string[][] = [];
+    tick(world, {
+      adopt: true,
+      replaceOrcaShells: true,
+      orcaBin: "orca",
+      run: (argv) => {
+        calls.push(argv);
+        return { status: 0, stdout: "{}", stderr: "" };
+      },
+    });
+    assert.equal(calls.length, 0);
+  });
 });

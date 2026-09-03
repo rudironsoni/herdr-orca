@@ -8,7 +8,7 @@ export type SyncConfig = {
 };
 
 export const DEFAULT_SYNC_CONFIG: SyncConfig = {
-  adopt: false,
+  adopt: true,
   replaceOrcaShells: true,
 };
 

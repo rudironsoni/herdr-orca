@@ -3,9 +3,9 @@ import { describe, it } from "node:test";
 import { parseSyncConfig } from "../src/config.ts";
 
 describe("parseSyncConfig", () => {
-  it("defaults adopt off and replace_orca_shells on", () => {
+  it("defaults adopt on and replace_orca_shells on", () => {
     const cfg = parseSyncConfig(null);
-    assert.equal(cfg.adopt, false);
+    assert.equal(cfg.adopt, true);
     assert.equal(cfg.replaceOrcaShells, true);
   });
 
