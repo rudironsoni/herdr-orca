@@ -1,6 +1,6 @@
 id = "rudironsoni.herdr-orca-sync"
-name = "Orca Sync"
-version = "0.1.0"
+name = "Herdr Orca Sync"
+version = "0.2.0"
 description = "Attach stock Orca tabs to Herdr-owned terminals."
 min_herdr_version = "0.7.5"
 platforms = ["macos", "linux", "windows"]
@@ -16,7 +16,7 @@ command = ["node", "dist/herdr-orca.mjs", "daemon", "ensure"]
 
 [[actions]]
 id = "status"
-title = "Orca Sync status"
+title = "Herdr Orca Sync status"
 command = ["node", "dist/herdr-orca.mjs", "status", "--popup"]
 
 [[actions]]
@@ -43,6 +43,6 @@ command = ["node", "dist/herdr-orca.mjs", "doctor"]
 
 [[panes]]
 id = "status"
-title = "Orca Sync"
+title = "Herdr Orca Sync"
 placement = "popup"
 command = ["node", "dist/herdr-orca.mjs", "status", "--popup"]
