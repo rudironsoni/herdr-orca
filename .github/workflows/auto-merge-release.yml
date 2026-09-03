@@ -1,0 +1,54 @@
+name: auto-merge-release
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: auto-merge-release-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  merge:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.head_ref, 'release-please--branches--')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for ci
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          set -euo pipefail
+          id=""
+          n=0
+          while [ "$n" -lt 24 ]; do
+            id=$(gh run list --repo "$REPO" --workflow ci.yml --branch "$BRANCH" --limit 10 \
+              --json databaseId,headSha --jq ".[] | select(.headSha==\"$SHA\") | .databaseId" | awk 'NR==1')
+            if [ -n "$id" ]; then
+              break
+            fi
+            n=$((n + 1))
+            sleep 5
+          done
+          if [ -z "$id" ]; then
+            echo "ci run not found for $SHA"
+            exit 1
+          fi
+          gh run watch "$id" --repo "$REPO" --exit-status
+      - name: Approve
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr review --repo "${{ github.repository }}" --approve "${{ github.event.pull_request.number }}"
+      - name: Squash merge
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr merge --repo "${{ github.repository }}" --squash --delete-branch "${{ github.event.pull_request.number }}"
