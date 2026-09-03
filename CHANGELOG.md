@@ -2,6 +2,13 @@
 
 Release Please writes this file from Conventional Commits when a release PR merges.
 
+## [0.2.1](https://github.com/rudironsoni/herdr-orca/compare/v0.2.0...v0.2.1) (2026-09-03)
+
+
+### Bug Fixes
+
+* show herdr plugin name and version ([78be591](https://github.com/rudironsoni/herdr-orca/commit/78be591690c619c7a55daab0610dedaf40f18a3d))
+
 ## [0.2.0](https://github.com/rudironsoni/herdr-orca/compare/v0.1.0...v0.2.0) (2026-09-03)
 
 
