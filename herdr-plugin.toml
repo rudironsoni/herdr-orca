@@ -11,6 +11,9 @@ command = ["pnpm", "install"]
 [[build]]
 command = ["pnpm", "build"]
 
+[[build]]
+command = ["node", "dist/herdr-orca.mjs", "daemon", "ensure"]
+
 [[startup]]
 command = ["node", "dist/herdr-orca.mjs", "daemon", "ensure"]
 

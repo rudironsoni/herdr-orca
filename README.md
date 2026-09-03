@@ -16,12 +16,19 @@ Plugin id: `rudironsoni.herdr-orca-sync`.
 ```bash
 herdr plugin install rudironsoni/herdr-orca
 herdr plugin enable rudironsoni.herdr-orca-sync
-herdr-orca daemon ensure
 herdr-orca doctor
 herdr-orca hooks install
 ```
 
-Herdr 0.8 does not run plugin startup on install. `daemon ensure` writes `~/.local/bin/herdr-orca` and a user service. After that, `herdr-orca` works in a login shell.
+Install runs `pnpm build` then `daemon ensure`. That writes `~/.local/bin/herdr-orca` and the user service. Herdr 0.8 does not run `[[startup]]` on enable. A session restore runs it again.
+
+If `herdr-orca` is missing after a copy that was installed before this, run:
+
+```bash
+herdr plugin action invoke repair --plugin rudironsoni.herdr-orca-sync
+```
+
+`~/.local/bin` must be on PATH.
 
 Uninstall the service before removing the plugin:
 
