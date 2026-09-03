@@ -1,6 +1,6 @@
 {
   "name": "@rudironsoni/herdr-orca",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Herdr plugin that attaches stock Orca to Herdr-owned terminals.",
   "license": "MIT",
   "type": "module",
