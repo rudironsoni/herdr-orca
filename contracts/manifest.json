@@ -7,5 +7,9 @@
   "orca": {
     "1.4.170": { "source": "horca tag v1.4.170 CLI spec", "includeVisualLayoutsFlag": false },
     "1.4.195": { "source": "this machine /Applications/Orca.app", "includeVisualLayoutsFlag": true }
+  },
+  "orcaHooks": {
+    "statusJson": "orca agent hooks status --json",
+    "endpointEnv": "{userData}/agent-hooks/endpoint.env keys only"
   }
 }

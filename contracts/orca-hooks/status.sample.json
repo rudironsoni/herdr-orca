@@ -1,0 +1,35 @@
+{
+  "id": "local",
+  "ok": true,
+  "result": {
+    "enabled": true,
+    "settingsPath": "$HOME/Library/Application Support/orca/profiles/local-default/orca-data.json",
+    "appliedBy": "offline",
+    "statuses": [
+      {
+        "agent": "claude",
+        "state": "installed",
+        "configPath": "$HOME/.claude/settings.json",
+        "managedHooksPresent": true,
+        "detail": null
+      },
+      {
+        "agent": "codex",
+        "state": "installed",
+        "configPath": "$HOME/Library/Application Support/orca/codex-runtime-home/home/hooks.json",
+        "managedHooksPresent": true,
+        "detail": null
+      },
+      {
+        "agent": "grok",
+        "state": "installed",
+        "configPath": "$HOME/.grok/hooks/orca-status.json",
+        "managedHooksPresent": true,
+        "detail": null
+      }
+    ]
+  },
+  "_meta": {
+    "runtimeId": "local"
+  }
+}

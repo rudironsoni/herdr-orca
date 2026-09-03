@@ -69,4 +69,41 @@ describe("daemon tick", () => {
       true,
     );
   });
+
+  it("does not create a second Orca tab when attach already exists", () => {
+    const world: World = {
+      herdr: [
+        {
+          terminalId: "term_1",
+          paneId: "w1:p1",
+          tabId: "w1:t1",
+          title: "shell",
+          pluginOwned: false,
+          cwd: "/tmp/repo",
+        },
+      ],
+      orca: [
+        {
+          tabId: "tab_1",
+          paneKey: "tab_1:a",
+          title: "shell",
+          command: "herdr-orca attach --terminal term_1",
+        },
+      ],
+      orcaReachable: true,
+      mappings: [],
+      mutations: [],
+      orcaClose: "detach",
+    };
+    const calls: string[][] = [];
+    tick(world, {
+      adopt: true,
+      orcaBin: "orca",
+      run: (argv) => {
+        calls.push(argv);
+        return { status: 0, stdout: "{}", stderr: "" };
+      },
+    });
+    assert.equal(calls.length, 0);
+  });
 });

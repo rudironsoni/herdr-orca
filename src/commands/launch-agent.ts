@@ -1,10 +1,8 @@
 import { basename } from "node:path";
 import { agentName, herdrKindForOrcaAgent } from "../agents.ts";
-import { insideHerdr, insideOrca } from "./attach.ts";
+import { insideHerdr, insideOrca, syncEnvPairs } from "./attach.ts";
 import { gitWorktreeRoot } from "../identity.ts";
 import { asRecord, parseJson, readString, walkStrings, type Runner } from "../run.ts";
-import { upsertMapping } from "../state.ts";
-import type { DatabaseSync } from "node:sqlite";
 
 export type LaunchAgentDeps = {
   env: NodeJS.ProcessEnv;
@@ -15,7 +13,6 @@ export type LaunchAgentDeps = {
   herdrBin: string;
   run: Runner;
   execAttach: (terminalId: string) => number;
-  openDb: () => DatabaseSync | null;
 };
 
 export type LaunchResult = { code: number; error?: string; terminalId?: string; paneId?: string };
@@ -23,22 +20,6 @@ export type LaunchResult = { code: number; error?: string; terminalId?: string; 
 function herdrArgv(bin: string, session: string | null, rest: string[]): string[] {
   if (session) return [bin, "--session", session, ...rest];
   return [bin, ...rest];
-}
-
-function orcaEnvPairs(env: NodeJS.ProcessEnv): string[] {
-  const keys = [
-    "ORCA_TAB_ID",
-    "ORCA_PANE_KEY",
-    "ORCA_TERMINAL_HANDLE",
-    "ORCA_WORKTREE_ID",
-    "ORCA_AGENT_HOOK_ENDPOINT",
-  ];
-  const pairs: string[] = [];
-  for (const key of keys) {
-    const value = env[key];
-    if (value) pairs.push(`${key}=${value}`);
-  }
-  return pairs;
 }
 
 function workspaceIdForCwd(run: Runner, bin: string, session: string | null, cwd: string): string | null {
@@ -100,7 +81,7 @@ export function runLaunchAgent(deps: LaunchAgentDeps): LaunchResult {
     title,
     "--no-focus",
   ];
-  for (const pair of orcaEnvPairs(deps.env)) {
+  for (const pair of syncEnvPairs(deps.env)) {
     createArgs.push("--env", pair);
   }
   const createdTab = deps.run(herdrArgv(deps.herdrBin, deps.session, createArgs));
@@ -135,15 +116,6 @@ export function runLaunchAgent(deps: LaunchAgentDeps): LaunchResult {
     if (started.status !== 0) {
       return { code: 1, error: started.stderr.trim() || "herdr agent start failed." };
     }
-  }
-  const db = deps.openDb();
-  if (db) {
-    upsertMapping(db, {
-      herdrTerminalId: terminalId,
-      orcaTabId: deps.env.ORCA_TAB_ID ?? null,
-      orcaPaneKey: deps.env.ORCA_PANE_KEY ?? null,
-      title,
-    });
   }
   const code = deps.execAttach(terminalId);
   return { code, terminalId, paneId: ids.pane_id };

@@ -6,12 +6,25 @@ import { describe, it } from "node:test";
 import { collectDoctorReport, type DoctorDeps, type RunResult } from "../src/commands/doctor.ts";
 
 function stubDeps(overrides: Partial<DoctorDeps> & { pluginRoot: string }): DoctorDeps {
+  const files = new Map<string, string>();
   return {
     nodePath: "/usr/bin/node",
     nodeVersion: "v22.0.0",
     which: () => null,
     run: () => ({ status: 1, stdout: "", stderr: "" }),
     readOrcaBundleVersion: () => null,
+    hooksFs: {
+      home: overrides.pluginRoot,
+      env: {},
+      read: (path) => files.get(path) ?? null,
+      write: (path, text) => {
+        files.set(path, text);
+      },
+      remove: (path) => {
+        files.delete(path);
+      },
+      mkdirp: () => {},
+    },
     ...overrides,
   };
 }

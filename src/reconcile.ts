@@ -50,23 +50,77 @@ export type Op =
 
 export type Plan = { ops: Op[] };
 
+export function attachTerminalId(command: string): string | null {
+  const match = command.match(/herdr-orca attach --terminal (\S+)/);
+  return match?.[1] ?? null;
+}
+
+export function mappingsFromOrca(leaves: OrcaLeaf[]): Surface[] {
+  const out: Surface[] = [];
+  for (const leaf of leaves) {
+    const herdrTerminalId = attachTerminalId(leaf.command);
+    if (!herdrTerminalId) continue;
+    out.push({
+      herdrTerminalId,
+      orcaTabId: leaf.tabId,
+      orcaPaneKey: leaf.paneKey,
+      title: leaf.title,
+    });
+  }
+  return out;
+}
+
 function mappedByHerdr(world: World, terminalId: string): Surface | undefined {
-  return world.mappings.find((row) => row.herdrTerminalId === terminalId);
+  const stored = world.mappings.find((row) => row.herdrTerminalId === terminalId);
+  if (stored?.orcaTabId) return stored;
+  const leaf = world.orca.find((row) => attachTerminalId(row.command) === terminalId);
+  if (!leaf) return stored;
+  return {
+    herdrTerminalId: terminalId,
+    orcaTabId: leaf.tabId,
+    orcaPaneKey: leaf.paneKey,
+    title: leaf.title,
+  };
 }
 
 function mappedByOrca(world: World, tabId: string, paneKey: string): Surface | undefined {
-  return world.mappings.find((row) => row.orcaTabId === tabId && row.orcaPaneKey === paneKey);
+  const stored = world.mappings.find((row) => row.orcaTabId === tabId && row.orcaPaneKey === paneKey);
+  if (stored?.herdrTerminalId) return stored;
+  const leaf = world.orca.find((row) => row.tabId === tabId && row.paneKey === paneKey);
+  if (!leaf) return stored;
+  const herdrTerminalId = attachTerminalId(leaf.command);
+  if (!herdrTerminalId) return stored;
+  return {
+    herdrTerminalId,
+    orcaTabId: leaf.tabId,
+    orcaPaneKey: leaf.paneKey,
+    title: leaf.title,
+  };
 }
 
-function isAttachCommand(command: string): boolean {
-  return command.includes("herdr-orca attach");
+function isPluginOrcaCommand(command: string): boolean {
+  return command.includes("herdr-orca attach") || command.includes("herdr-orca launch-agent");
 }
 
 function pendingCreate(world: World, target: string): Mutation | undefined {
   return world.mutations.find((row) => row.field === "create_orca" && row.target === target);
 }
 
+function mergeLiveMappings(world: World): World {
+  const live = mappingsFromOrca(world.orca);
+  if (live.length === 0) return world;
+  const byHerdr = new Map<string, Surface>();
+  for (const row of world.mappings) {
+    if (row.herdrTerminalId) byHerdr.set(row.herdrTerminalId, row);
+  }
+  for (const row of live) {
+    if (row.herdrTerminalId) byHerdr.set(row.herdrTerminalId, row);
+  }
+  return { ...world, mappings: [...byHerdr.values()] };
+}
+
 export function reconcile(world: World): Plan {
+  world = mergeLiveMappings(world);
   const ops: Op[] = [];
   const seenHerdr = new Set<string>();
 
@@ -102,7 +156,7 @@ export function reconcile(world: World): Plan {
   for (const leaf of world.orca) {
     const mapped = mappedByOrca(world, leaf.tabId, leaf.paneKey);
     if (mapped?.herdrTerminalId) continue;
-    if (isAttachCommand(leaf.command)) continue;
+    if (isPluginOrcaCommand(leaf.command)) continue;
     ops.push({
       type: "replace_orca_pty",
       orcaTabId: leaf.tabId,

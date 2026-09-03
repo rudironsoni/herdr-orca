@@ -111,6 +111,33 @@ describe("reconcile", () => {
     assert.equal(plan.ops[0]?.type, "replace_orca_pty");
   });
 
+  it("treats an Orca attach command as the mapping", () => {
+    const start = world({
+      herdr: [
+        {
+          terminalId: "term_1",
+          paneId: "w1:p1",
+          tabId: "w1:t1",
+          title: "shell",
+          pluginOwned: false,
+        },
+      ],
+      orca: [
+        {
+          tabId: "tab_1",
+          paneKey: "tab_1:a",
+          title: "shell",
+          command: "herdr-orca attach --terminal term_1",
+        },
+      ],
+    });
+    const plan = reconcile(start);
+    assert.equal(
+      plan.ops.some((op) => op.type === "create_orca_attach" || op.type === "replace_orca_pty"),
+      false,
+    );
+  });
+
   it("acks a title mutation instead of bouncing", () => {
     const start = world({
       herdr: [

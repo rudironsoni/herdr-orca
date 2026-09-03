@@ -34,4 +34,16 @@ describe("parseArgs", () => {
     assert.equal(parsed.kind, "command");
     if (parsed.kind === "command") assert.equal(parsed.command, "launch-agent");
   });
+
+  it("parses hook and hooks", () => {
+    const hook = parseArgs(["hook", "--event", "SessionStart"]);
+    assert.equal(hook.kind, "command");
+    if (hook.kind === "command") assert.equal(hook.command, "hook");
+    const hooks = parseArgs(["hooks", "status", "--json"]);
+    assert.equal(hooks.kind, "command");
+    if (hooks.kind === "command") {
+      assert.equal(hooks.command, "hooks");
+      assert.equal(hooks.json, true);
+    }
+  });
 });

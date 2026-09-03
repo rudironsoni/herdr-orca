@@ -31,12 +31,17 @@ node dist/herdr-orca.mjs doctor --json
 2. `pnpm build` writes `dist/herdr-orca.mjs`.
 3. `node dist/herdr-orca.mjs doctor` prints Herdr protocol and Orca version.
 4. `node dist/herdr-orca.mjs doctor --json` includes `"ok": true` when floors pass.
+5. `node dist/herdr-orca.mjs hooks status --json` reports plugin-owned hook entries. `hooks install` is opt-in on your machine.
 
-`herdr-orca attach --terminal ID` execs `herdr terminal attach ID --takeover` from an Orca PTY.
+`herdr-orca attach --terminal ID` copies `HERDR_ORCA_SYNC=1` and `ORCA_*` into the Herdr pane, then execs `herdr terminal attach ID --takeover`.
 
-`herdr-orca launch-agent [--agent KIND]` creates a Herdr tab from the current Orca PTY, injects `ORCA_*`, then attaches.
+`herdr-orca launch-agent [--agent KIND]` creates a Herdr tab from the current Orca PTY, injects `HERDR_ORCA_SYNC` and `ORCA_*`, then attaches.
 
-`herdr-orca daemon --foreground` polls both sides and writes mappings. Pass `--adopt` to create missing Orca attach tabs. Without `--adopt` it does not flood Orca.
+`herdr-orca daemon --foreground` polls both sides. It matches Orca tabs whose command is `herdr-orca attach --terminal ID`. Pass `--adopt` to create missing Orca attach tabs. Without `--adopt` it does not flood Orca.
+
+`herdr-orca hooks install` appends `herdr-orca hook --event …` to Claude, Codex, and Grok user configs. It never edits Orca-owned hook files. The hook prints nothing and exits 0 unless `HERDR_ENV=1`, `HERDR_ORCA_SYNC=1`, and `ORCA_TAB_ID` or `ORCA_PANE_KEY` are set.
+
+Set `[agents] hooks_install = false` in the plugin config to refuse install.
 
 ## CI and release
 

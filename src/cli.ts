@@ -1,4 +1,4 @@
-export type CommandName = "doctor" | "daemon" | "attach" | "launch-agent";
+export type CommandName = "doctor" | "daemon" | "attach" | "launch-agent" | "hook" | "hooks";
 
 export type ParsedArgs =
   | { kind: "help" }
@@ -11,7 +11,7 @@ export type ParsedArgs =
       rest: string[];
     };
 
-const COMMANDS = new Set<string>(["doctor", "daemon", "attach", "launch-agent"]);
+const COMMANDS = new Set<string>(["doctor", "daemon", "attach", "launch-agent", "hook", "hooks"]);
 
 export function parseArgs(argv: string[]): ParsedArgs {
   if (argv.length === 0 || argv[0] === "-h" || argv[0] === "--help") {
@@ -37,6 +37,8 @@ Usage:
   herdr-orca doctor [--json]
   herdr-orca attach --terminal ID
   herdr-orca launch-agent [--agent KIND] [--]
+  herdr-orca hook --event NAME
+  herdr-orca hooks install|uninstall|status [--json]
   herdr-orca daemon ensure
   herdr-orca daemon --foreground [--adopt]
 
@@ -44,12 +46,15 @@ Commands:
   doctor         Check Node, Herdr protocol floors, and Orca version
   attach         Attach this Orca PTY to a Herdr terminal
   launch-agent   Create a Herdr terminal from this Orca tab, then attach
+  hook           Agent hook entry. No-op unless this pane is mapped to Orca
+  hooks          Install or remove plugin-owned agent hook entries
   daemon         User service
 
 Examples:
   herdr-orca doctor
   herdr-orca attach --terminal term_abc
   herdr-orca launch-agent --agent claude --
+  herdr-orca hooks install
 `;
 }
 
@@ -77,6 +82,7 @@ export function attachHelp(): string {
 
 Attach this Orca terminal to a Herdr-owned PTY. Closing Orca detaches.
 The Herdr process keeps running.
+Copies ORCA_* and HERDR_ORCA_SYNC=1 into the Herdr pane before attach.
 
 Options:
   --terminal ID    Herdr terminal_id (required)
@@ -101,6 +107,46 @@ Options:
 Examples:
   herdr-orca launch-agent
   herdr-orca launch-agent --agent claude --
+`;
+}
+
+export function hookHelp(): string {
+  return `herdr-orca hook --event NAME
+
+Called by agent user hooks. Reads JSON on stdin.
+
+The hook prints nothing and exits 0 unless all of these are true:
+  HERDR_ENV=1 and HERDR_SOCKET_PATH are set
+  HERDR_ORCA_SYNC=1 (set at attach / launch-agent)
+  ORCA_TAB_ID or ORCA_PANE_KEY is set
+
+Options:
+  --event NAME    Agent hook event (required)
+  --help          Show this help
+
+Examples:
+  herdr-orca hook --event SessionStart
+`;
+}
+
+export function hooksHelp(): string {
+  return `herdr-orca hooks install|uninstall|status [--json]
+
+Install plugin-owned hook entries in agent user configs.
+Does not edit Orca-owned hook files.
+
+Subcommands:
+  install      Append herdr-orca hook entries
+  uninstall    Remove only commands that call herdr-orca hook
+  status       Show whether our entries are present
+
+Options:
+  --json    Print a machine-readable report
+  --help    Show this help
+
+Examples:
+  herdr-orca hooks install
+  herdr-orca hooks status --json
 `;
 }
 

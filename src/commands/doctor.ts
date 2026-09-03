@@ -8,6 +8,7 @@ import {
   orcaVersionMeetsFloor,
 } from "../floors.ts";
 import { distEntry, pluginRootFromEntry } from "../paths.ts";
+import { collectHooksStatus, defaultFsHooks, type FsHooks, type HooksStatus } from "./hooks.ts";
 
 export type Issue = {
   level: "fail" | "warn";
@@ -35,6 +36,7 @@ export type DoctorReport = {
     version: string | null;
     runtimeReachable: boolean;
   };
+  hooks: HooksStatus;
   issues: Issue[];
 };
 
@@ -48,6 +50,7 @@ export type DoctorDeps = {
   which: (name: string) => string | null;
   run: Runner;
   readOrcaBundleVersion: (orcaBin: string) => string | null;
+  hooksFs?: FsHooks;
 };
 
 const defaultWhich = (name: string): string | null => {
@@ -216,6 +219,15 @@ export function collectDoctorReport(deps: DoctorDeps): DoctorReport {
     }
   }
 
+  const hooks = collectHooksStatus(deps.hooksFs ?? defaultFsHooks());
+  if (!hooks.ok) {
+    issues.push({
+      level: "warn",
+      code: "hooks_not_installed",
+      message: "Plugin-owned agent hooks are missing. Run herdr-orca hooks install. Orca hook files are left alone.",
+    });
+  }
+
   const failures = issues.filter((issue) => issue.level === "fail");
   return {
     ok: failures.length === 0,
@@ -233,6 +245,7 @@ export function collectDoctorReport(deps: DoctorDeps): DoctorReport {
       running: herdrRunning,
     },
     orca: { path: orcaPath, version: orcaVersion, runtimeReachable },
+    hooks,
     issues,
   };
 }
@@ -244,6 +257,10 @@ export function formatDoctorText(report: DoctorReport): string {
     `dist: ${report.dist.present ? "present" : "missing"} ${report.dist.path}`,
     `herdr: ${report.herdr.path ?? "missing"} version=${report.herdr.version ?? "unknown"} protocol=${report.herdr.protocol ?? "unknown"} session=${report.herdr.session ?? "unknown"} running=${report.herdr.running}`,
     `orca: ${report.orca.path ?? "missing"} version=${report.orca.version ?? "unknown"} runtime=${report.orca.runtimeReachable ? "reachable" : "down"}`,
+    `hooks: ${report.hooks.targets
+      .filter((row) => !row.skipped)
+      .map((row) => `${row.id}=${row.present ? "present" : "absent"}`)
+      .join(" ") || "none"}`,
   ];
   if (report.issues.length === 0) {
     lines.push("issues: none");

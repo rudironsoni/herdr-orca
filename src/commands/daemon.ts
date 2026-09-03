@@ -2,9 +2,15 @@ import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "
 import { join } from "node:path";
 import { spawn } from "node:child_process";
 import { pluginStateDir } from "../paths.ts";
-import { loadMappings, openState, upsertMapping } from "../state.ts";
 import { asRecord, parseJson, readString, which, type Runner } from "../run.ts";
-import { reconcile, type HerdrTerminal, type OrcaLeaf, type World } from "../reconcile.ts";
+import {
+  mappingsFromOrca,
+  reconcile,
+  type HerdrTerminal,
+  type Mutation,
+  type OrcaLeaf,
+  type World,
+} from "../reconcile.ts";
 
 export function pidPath(stateDir = pluginStateDir()): string {
   return join(stateDir, "syncd.pid");
@@ -136,20 +142,16 @@ export function tick(world: World, opts: { adopt: boolean; run: Runner; orcaBin:
     if (op.type === "create_orca_attach" && opts.adopt && opts.orcaBin) {
       const herdr = world.herdr.find((row) => row.terminalId === op.herdrTerminalId);
       applyCreateOrcaAttach(opts.run, opts.orcaBin, op, herdr?.cwd);
-      next.mappings.push({
-        herdrTerminalId: op.herdrTerminalId,
-        orcaTabId: null,
-        orcaPaneKey: null,
-        title: op.title,
+      next.mutations.push({
+        id: `create-${op.herdrTerminalId}`,
+        field: "create_orca",
+        target: op.herdrTerminalId,
+        expectedValue: op.herdrTerminalId,
+        source: "herdr",
       });
     }
   }
   return next;
-}
-
-export function persistMappings(stateDir: string, world: World): void {
-  const db = openState(join(stateDir, "sync.sqlite3"));
-  for (const row of world.mappings) upsertMapping(db, row);
 }
 
 export async function runForeground(opts: {
@@ -164,20 +166,24 @@ export async function runForeground(opts: {
   writeFileSync(pidPath(opts.stateDir), `${process.pid}\n`);
   const herdrBin = which("herdr");
   const orcaBin = which("orca");
+  let mutations: Mutation[] = [];
   const loop = (): void => {
-    const db = openState(join(opts.stateDir, "sync.sqlite3"));
     const herdr = herdrBin ? snapshotHerdr(opts.run, herdrBin, opts.session) : [];
     const orca = orcaBin ? snapshotOrca(opts.run, orcaBin) : { reachable: false, leaves: [] };
+    const mappings = mappingsFromOrca(orca.leaves);
+    mutations = mutations.filter(
+      (row) => !(row.field === "create_orca" && mappings.some((item) => item.herdrTerminalId === row.target)),
+    );
     const world: World = {
       herdr,
       orca: orca.leaves,
       orcaReachable: orca.reachable,
-      mappings: loadMappings(db),
-      mutations: [],
+      mappings,
+      mutations,
       orcaClose: "detach",
     };
     const next = tick(world, { adopt: opts.adopt, run: opts.run, orcaBin });
-    persistMappings(opts.stateDir, next);
+    mutations = next.mutations;
   };
   loop();
   if (opts.once) return;

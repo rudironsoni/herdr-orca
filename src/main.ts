@@ -1,13 +1,19 @@
-import { parseArgs, rootHelp, doctorHelp, attachHelp, launchAgentHelp, flagValue } from "./cli.ts";
+import { parseArgs, rootHelp, doctorHelp, attachHelp, launchAgentHelp, hookHelp, hooksHelp, flagValue } from "./cli.ts";
 import { collectDoctorReport, defaultDoctorDeps, formatDoctorText } from "./commands/doctor.ts";
 import { defaultExec, runAttach } from "./commands/attach.ts";
 import { runLaunchAgent } from "./commands/launch-agent.ts";
 import { ensureDaemon, runForeground } from "./commands/daemon.ts";
+import { runHookCommand } from "./commands/hook.ts";
+import {
+  collectHooksStatus,
+  defaultFsHooks,
+  formatHooksStatus,
+  runHooksInstall,
+  runHooksUninstall,
+} from "./commands/hooks.ts";
 import { pluginRootFromEntry, pluginStateDir, distEntry } from "./paths.ts";
-import { openState } from "./state.ts";
 import { defaultRunner, which } from "./run.ts";
 import { existsSync } from "node:fs";
-import { join } from "node:path";
 
 function existsDist(pluginRoot: string): boolean {
   return existsSync(distEntry(pluginRoot));
@@ -21,7 +27,7 @@ function writeErr(text: string): void {
   process.stderr.write(text);
 }
 
-function main(argv: string[]): number {
+async function main(argv: string[]): Promise<number> {
   const parsed = parseArgs(argv);
   if (parsed.kind === "help") {
     writeOut(rootHelp());
@@ -56,12 +62,9 @@ function main(argv: string[]): number {
     }
     const result = runAttach(terminalId, {
       env: process.env,
-      which: (name) => {
-        const found = spawnSync("which", [name], { encoding: "utf8" });
-        const path = found.stdout.trim();
-        return found.status === 0 && path.length > 0 ? path : null;
-      },
+      which,
       exec: defaultExec,
+      run: defaultRunner,
     });
     if (result.error) writeErr(`${result.error}\n`);
     return result.code;
@@ -89,11 +92,51 @@ function main(argv: string[]): number {
       herdrBin,
       run: defaultRunner,
       execAttach: (terminalId) =>
-        runAttach(terminalId, { env: process.env, which, exec: defaultExec }).code,
-      openDb: () => openState(join(pluginStateDir(), "sync.sqlite3")),
+        runAttach(terminalId, {
+          env: process.env,
+          which,
+          exec: defaultExec,
+          run: defaultRunner,
+          inject: false,
+        }).code,
     });
     if (result.error) writeErr(`${result.error}\n`);
     return result.code;
+  }
+  if (parsed.command === "hook" && parsed.help) {
+    writeOut(hookHelp());
+    return 0;
+  }
+  if (parsed.command === "hook") {
+    return runHookCommand({ rest: parsed.rest });
+  }
+  if (parsed.command === "hooks" && parsed.help) {
+    writeOut(hooksHelp());
+    return 0;
+  }
+  if (parsed.command === "hooks") {
+    const sub = parsed.rest.find((item) => !item.startsWith("-")) ?? "status";
+    const fs = defaultFsHooks();
+    if (sub === "install") {
+      const status = runHooksInstall(fs);
+      if (parsed.json) writeOut(`${JSON.stringify(status, null, 2)}\n`);
+      else writeOut(formatHooksStatus(status));
+      return status.ok ? 0 : 1;
+    }
+    if (sub === "uninstall") {
+      const status = runHooksUninstall(fs);
+      if (parsed.json) writeOut(`${JSON.stringify(status, null, 2)}\n`);
+      else writeOut(formatHooksStatus(status));
+      return 0;
+    }
+    if (sub === "status") {
+      const status = collectHooksStatus(fs);
+      if (parsed.json) writeOut(`${JSON.stringify(status, null, 2)}\n`);
+      else writeOut(formatHooksStatus(status));
+      return status.ok ? 0 : 1;
+    }
+    writeErr(hooksHelp());
+    return 2;
   }
   if (parsed.command === "daemon") {
     const rest = parsed.rest;
@@ -123,5 +166,6 @@ function main(argv: string[]): number {
   return 2;
 }
 
-const code = main(process.argv.slice(2));
-process.exitCode = code;
+void main(process.argv.slice(2)).then((code) => {
+  process.exitCode = code;
+});

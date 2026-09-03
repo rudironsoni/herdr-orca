@@ -25,8 +25,12 @@ An Orca-owned PTY that has not been replaced yet. The plugin replaces it with a 
 _Avoid_: Unmanaged shell, native terminal
 
 **Mapping**:
-The persisted identity join between a Herdr terminal and an Orca tab or leaf.
-_Avoid_: Link, binding, association
+The live pairing. Orca's tab command `herdr-orca attach --terminal ID` is the join. Not a database row.
+_Avoid_: Link, binding, association, journal
+
+**Plugin hook**:
+A `herdr-orca hook` entry in an agent's user config. It is a no-op unless attach or launch-agent set `HERDR_ORCA_SYNC=1` plus Orca ids on this Herdr pane. It does not edit Orca-owned hook files.
+_Avoid_: Orca hook, managed hook
 
 **Reconciler**:
 The module that turns Herdr, Orca, Git, and mapping snapshots into a plan of operations.

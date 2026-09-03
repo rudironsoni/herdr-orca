@@ -42,7 +42,6 @@ describe("runLaunchAgent", () => {
         calls.push(["attach", id]);
         return 0;
       },
-      openDb: () => null,
     });
     assert.equal(result.code, 0);
     assert.equal(result.terminalId, "term_new");
@@ -63,7 +62,6 @@ describe("runLaunchAgent", () => {
       herdrBin: "herdr",
       run: () => ({ status: 0, stdout: "{}", stderr: "" }),
       execAttach: () => 0,
-      openDb: () => null,
     });
     assert.equal(result.code, 1);
   });
