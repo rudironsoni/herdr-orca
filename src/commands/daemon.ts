@@ -1,8 +1,17 @@
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
-import { pluginStateDir } from "../paths.ts";
-import { asRecord, parseJson, readString, which, type Runner } from "../run.ts";
+import { homedir } from "node:os";
+import { distEntry, pluginStateDir } from "../paths.ts";
+import { asRecord, defaultRunner, parseJson, readString, which, type Runner } from "../run.ts";
+import {
+  defaultServiceFs,
+  installServiceFiles,
+  loadUserService,
+  removeServiceFiles,
+  unloadUserService,
+  type ServiceFs,
+} from "../service.ts";
 import {
   mappingsFromOrca,
   reconcile,
@@ -35,24 +44,39 @@ export function ensureDaemon(opts: {
   pluginRoot: string;
   stateDir?: string;
   spawnDetached?: boolean;
+  fs?: ServiceFs;
+  run?: Runner;
+  nodePath?: string;
+  envPath?: string;
+  home?: string;
+  platform?: NodeJS.Platform;
 }): { code: number; message: string } {
   const stateDir = opts.stateDir ?? pluginStateDir();
   mkdirSync(stateDir, { recursive: true });
+  const entry = distEntry(opts.pluginRoot);
+  if (!existsSync(entry)) {
+    return { code: 1, message: `dist missing at ${entry}. herdr plugin install must finish pnpm build.` };
+  }
+  const home = opts.home ?? homedir();
+  const platform = opts.platform ?? process.platform;
+  const fs = opts.fs ?? defaultServiceFs(home, platform);
+  installServiceFiles({
+    fs,
+    nodePath: opts.nodePath ?? process.execPath,
+    envPath: opts.envPath ?? process.env.PATH ?? "/usr/bin:/bin",
+  });
+  const run = opts.run ?? defaultRunner;
+  if (platform === "darwin" || platform === "linux") {
+    loadUserService({ platform, home, run });
+    return { code: 0, message: `installed user service and shim ${join(home, ".local/bin/herdr-orca")}` };
+  }
   const existing = readPid(pidPath(stateDir));
   if (existing && isPidAlive(existing)) {
     return { code: 0, message: `daemon already running pid=${existing}` };
   }
-  if (existing) {
-    try {
-      unlinkSync(pidPath(stateDir));
-    } catch {
-      /* ignore */
-    }
-  }
   if (!opts.spawnDetached) {
-    return { code: 0, message: "daemon not running; start with herdr-orca daemon --foreground" };
+    return { code: 0, message: "wrote shim; start with herdr-orca daemon --foreground" };
   }
-  const entry = join(opts.pluginRoot, "dist/herdr-orca.mjs");
   const child = spawn(process.execPath, [entry, "daemon", "--foreground"], {
     detached: true,
     stdio: "ignore",
@@ -61,6 +85,38 @@ export function ensureDaemon(opts: {
   child.unref();
   if (child.pid) writeFileSync(pidPath(stateDir), `${child.pid}\n`);
   return { code: 0, message: `started daemon pid=${child.pid ?? "unknown"}` };
+}
+
+export function stopDaemon(opts: { stateDir?: string }): { code: number; message: string } {
+  const pid = readPid(pidPath(opts.stateDir));
+  if (!pid) return { code: 0, message: "daemon not running" };
+  try {
+    process.kill(pid, "SIGTERM");
+  } catch {
+    /* already dead */
+  }
+  try {
+    unlinkSync(pidPath(opts.stateDir));
+  } catch {
+    /* ignore */
+  }
+  return { code: 0, message: `stopped pid=${pid}` };
+}
+
+export function uninstallDaemon(opts: {
+  stateDir?: string;
+  fs?: ServiceFs;
+  run?: Runner;
+  home?: string;
+  platform?: NodeJS.Platform;
+}): { code: number; message: string } {
+  stopDaemon({ stateDir: opts.stateDir });
+  const home = opts.home ?? homedir();
+  const platform = opts.platform ?? process.platform;
+  const fs = opts.fs ?? defaultServiceFs(home, platform);
+  unloadUserService({ platform, home, run: opts.run ?? defaultRunner });
+  removeServiceFiles(fs);
+  return { code: 0, message: "removed user service and shim" };
 }
 
 export function snapshotHerdr(run: Runner, herdrBin: string, session: string | null): HerdrTerminal[] {
@@ -128,7 +184,19 @@ export function applyCreateOrcaAttach(
   run(args);
 }
 
-export function tick(world: World, opts: { adopt: boolean; run: Runner; orcaBin: string | null }): World {
+export function applyReplaceOrcaPty(
+  run: Runner,
+  orcaBin: string,
+  op: { orcaTabId: string; title: string },
+): void {
+  run([orcaBin, "terminal", "create", "--title", op.title, "--command", "herdr-orca", "--json"]);
+  run([orcaBin, "terminal", "close", `id:${op.orcaTabId}`, "--json"]);
+}
+
+export function tick(
+  world: World,
+  opts: { adopt: boolean; replaceOrcaShells?: boolean; run: Runner; orcaBin: string | null },
+): World {
   const plan = reconcile(world);
   const next: World = {
     ...world,
@@ -150,6 +218,9 @@ export function tick(world: World, opts: { adopt: boolean; run: Runner; orcaBin:
         source: "herdr",
       });
     }
+    if (op.type === "replace_orca_pty" && opts.replaceOrcaShells && opts.orcaBin) {
+      applyReplaceOrcaPty(opts.run, opts.orcaBin, op);
+    }
   }
   return next;
 }
@@ -158,6 +229,7 @@ export async function runForeground(opts: {
   stateDir: string;
   session: string | null;
   adopt: boolean;
+  replaceOrcaShells?: boolean;
   run: Runner;
   intervalMs?: number;
   once?: boolean;
@@ -182,7 +254,12 @@ export async function runForeground(opts: {
       mutations,
       orcaClose: "detach",
     };
-    const next = tick(world, { adopt: opts.adopt, run: opts.run, orcaBin });
+    const next = tick(world, {
+      adopt: opts.adopt,
+      replaceOrcaShells: opts.replaceOrcaShells === true,
+      run: opts.run,
+      orcaBin,
+    });
     mutations = next.mutations;
   };
   loop();

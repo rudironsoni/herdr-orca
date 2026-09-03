@@ -1,4 +1,15 @@
-export type CommandName = "doctor" | "daemon" | "attach" | "launch-agent" | "hook" | "hooks";
+export type CommandName =
+  | "doctor"
+  | "daemon"
+  | "attach"
+  | "launch-agent"
+  | "hook"
+  | "hooks"
+  | "open"
+  | "status"
+  | "sync"
+  | "open-in-orca"
+  | "repair";
 
 export type ParsedArgs =
   | { kind: "help" }
@@ -11,11 +22,28 @@ export type ParsedArgs =
       rest: string[];
     };
 
-const COMMANDS = new Set<string>(["doctor", "daemon", "attach", "launch-agent", "hook", "hooks"]);
+const COMMANDS = new Set<string>([
+  "doctor",
+  "daemon",
+  "attach",
+  "launch-agent",
+  "hook",
+  "hooks",
+  "open",
+  "status",
+  "sync",
+  "open-in-orca",
+  "repair",
+]);
 
 export function parseArgs(argv: string[]): ParsedArgs {
-  if (argv.length === 0 || argv[0] === "-h" || argv[0] === "--help") {
+  if (argv[0] === "-h" || argv[0] === "--help") {
     return { kind: "help" };
+  }
+  if (argv.length === 0 || argv[0]?.startsWith("-")) {
+    const rest = argv;
+    if (rest.includes("-h") || rest.includes("--help")) return { kind: "help" };
+    return { kind: "command", command: "open", json: rest.includes("--json"), help: false, rest };
   }
   const command = argv[0];
   if (!COMMANDS.has(command)) {
@@ -34,26 +62,35 @@ Attach stock Orca tabs to Herdr-owned terminals.
 
 Usage:
   herdr-orca --help
+  herdr-orca                          (Orca tab: create a Herdr shell and attach)
+  herdr-orca --agent KIND [--]
+  herdr-orca --terminal ID
   herdr-orca doctor [--json]
   herdr-orca attach --terminal ID
-  herdr-orca launch-agent [--agent KIND] [--]
-  herdr-orca hook --event NAME
+  herdr-orca open-in-orca
+  herdr-orca status
+  herdr-orca sync
+  herdr-orca repair
   herdr-orca hooks install|uninstall|status [--json]
-  herdr-orca daemon ensure
+  herdr-orca daemon ensure|stop|uninstall
   herdr-orca daemon --foreground [--adopt]
 
 Commands:
-  doctor         Check Node, Herdr protocol floors, and Orca version
+  (none)         In Orca, create a Herdr shell and attach
+  doctor         Check floors
   attach         Attach this Orca PTY to a Herdr terminal
-  launch-agent   Create a Herdr terminal from this Orca tab, then attach
-  hook           Agent hook entry. No-op unless this pane is mapped to Orca
-  hooks          Install or remove plugin-owned agent hook entries
-  daemon         User service
+  open-in-orca   From a Herdr pane, open this terminal in Orca
+  status         Same as doctor
+  sync           One reconcile tick
+  repair         Ensure the user service, then doctor
+  hook           Agent hook entry
+  hooks          Install plugin-owned agent hook entries
+  daemon         User service (launchd / systemd)
 
 Examples:
+  herdr-orca
+  herdr-orca --agent claude --
   herdr-orca doctor
-  herdr-orca attach --terminal term_abc
-  herdr-orca launch-agent --agent claude --
   herdr-orca hooks install
 `;
 }

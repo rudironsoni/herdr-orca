@@ -41,6 +41,11 @@ id = "doctor"
 title = "Doctor"
 command = ["node", "dist/herdr-orca.mjs", "doctor"]
 
+[[actions]]
+id = "reset"
+title = "Reset local service"
+command = ["node", "dist/herdr-orca.mjs", "daemon", "uninstall"]
+
 [[panes]]
 id = "status"
 title = "Herdr Orca Sync"

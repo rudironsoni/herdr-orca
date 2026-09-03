@@ -1,62 +1,93 @@
-# herdr-orca-sync
+# Herdr Orca Sync
 
-Herdr plugin plus a user daemon that shows Herdr terminals inside stock Orca.
+Show Herdr terminals inside stock Orca. Herdr owns the PTY. Orca owns the window.
 
-Herdr owns the PTY. Orca owns the window. Git owns the checkout.
-
-This build is the doctor slice. It does not start the reconciler yet.
+Plugin id: `rudironsoni.herdr-orca-sync`.
 
 ## Floors
 
 - Herdr protocol 18 or newer
 - Orca 1.4.170 or newer
 - Node 20 or newer
+- macOS or Linux for the user service (launchd / systemd)
 
-## Install (local)
+## Install
 
 ```bash
-pnpm install
-pnpm build
-pnpm test
-herdr plugin link .
-node dist/herdr-orca.mjs doctor
-node dist/herdr-orca.mjs doctor --json
+herdr plugin install rudironsoni/herdr-orca
+herdr plugin enable rudironsoni.herdr-orca-sync
+herdr-orca daemon ensure
+herdr-orca doctor
+herdr-orca hooks install
 ```
 
-`herdr plugin install` runs `pnpm install` then `pnpm build`. The build writes a small Node launcher at `dist/herdr-orca.mjs` that runs `src/main.ts`. launchd later starts that launcher. If Node is missing, the daemon does not start.
+Herdr 0.8 does not run plugin startup on install. `daemon ensure` writes `~/.local/bin/herdr-orca` and a user service. After that, `herdr-orca` works in a login shell.
 
-## How to test
+Uninstall the service before removing the plugin:
 
-1. `pnpm test` exits 0.
-2. `pnpm build` writes `dist/herdr-orca.mjs`.
-3. `node dist/herdr-orca.mjs doctor` prints Herdr protocol and Orca version.
-4. `node dist/herdr-orca.mjs doctor --json` includes `"ok": true` when floors pass.
-5. `node dist/herdr-orca.mjs hooks status --json` reports plugin-owned hook entries. `hooks install` is opt-in on your machine.
+```bash
+herdr plugin action invoke reset --plugin rudironsoni.herdr-orca-sync
+herdr plugin uninstall rudironsoni.herdr-orca-sync
+```
 
-`herdr-orca attach --terminal ID` copies `HERDR_ORCA_SYNC=1` and `ORCA_*` into the Herdr pane, then execs `herdr terminal attach ID --takeover`.
+## Run the CLI
 
-`herdr-orca launch-agent [--agent KIND]` creates a Herdr tab from the current Orca PTY, injects `HERDR_ORCA_SYNC` and `ORCA_*`, then attaches.
+| Command | Where | What it does |
+| --- | --- | --- |
+| `herdr-orca` | Orca tab | Create a Herdr shell and attach |
+| `herdr-orca --agent claude --` | Orca tab | Same, then start Claude |
+| `herdr-orca --terminal ID` | Orca tab | Attach this tab to an existing Herdr terminal |
+| `herdr-orca doctor` | anywhere | Check floors |
+| `herdr-orca open-in-orca` | Herdr pane | Open this terminal in Orca |
+| `herdr-orca sync` | anywhere | One reconcile tick |
+| `herdr-orca repair` | anywhere | Ensure the service, then doctor |
+| `herdr-orca hooks install` | anywhere | Add plugin-owned agent hooks |
+| `herdr-orca daemon ensure` | anywhere | Shim + launchd/systemd |
+| `herdr-orca daemon stop` | anywhere | Stop the daemon. Leave the service. |
+| `herdr-orca daemon uninstall` | anywhere | Remove service and shim |
 
-`herdr-orca daemon --foreground` polls both sides. It matches Orca tabs whose command is `herdr-orca attach --terminal ID`. Pass `--adopt` to create missing Orca attach tabs. Without `--adopt` it does not flood Orca.
+## Run from Herdr
 
-`herdr-orca hooks install` appends `herdr-orca hook --event …` to Claude, Codex, and Grok user configs. It never edits Orca-owned hook files. The hook prints nothing and exits 0 unless `HERDR_ENV=1`, `HERDR_ORCA_SYNC=1`, and `ORCA_TAB_ID` or `ORCA_PANE_KEY` are set.
+Plugin Manager actions (or CLI):
 
-Set `[agents] hooks_install = false` in the plugin config to refuse install.
+```bash
+herdr plugin action invoke doctor --plugin rudironsoni.herdr-orca-sync
+herdr plugin action invoke open-in-orca --plugin rudironsoni.herdr-orca-sync
+herdr plugin action invoke sync-now --plugin rudironsoni.herdr-orca-sync
+```
+
+**Open in Orca** on a pane creates an Orca tab whose command is `herdr-orca attach --terminal <id>`.
+
+## Run from Orca
+
+Set the tab command to `herdr-orca`. That is a Herdr shell. Closing Orca detaches. The Herdr process keeps running.
+
+Start an agent in that shell, or use `herdr-orca --agent claude --`.
+
+The daemon can replace an ordinary Orca Cmd-T shell with `herdr-orca` when `replace_orca_shells = true` (default).
+
+## Config
+
+`$(herdr plugin config-dir rudironsoni.herdr-orca-sync)/config.toml`
+
+```toml
+[sync]
+adopt = false
+replace_orca_shells = true
+```
+
+`adopt = true` lets the daemon create missing Orca attach tabs for Herdr terminals.
+
+## Hooks
+
+`herdr-orca hooks install` appends `herdr-orca hook --event …` to Claude, Codex, and Grok user configs. It does not edit Orca-owned hook files. The hook no-ops unless `HERDR_ENV=1`, `HERDR_ORCA_SYNC=1`, and `ORCA_TAB_ID` or `ORCA_PANE_KEY` are set.
 
 ## CI and release
 
-GitHub Actions:
-
-- `.github/workflows/ci.yml` runs `pnpm test` and `pnpm build` on Ubuntu and macOS (Node 22). It uploads `dist/herdr-orca.mjs` as a workflow artifact.
-- `.github/workflows/release.yml` uses `googleapis/release-please-action@v5`. Conventional Commits on `main` open a release PR that writes `CHANGELOG.md`, tags, and creates a GitHub Release. The release job attaches `herdr-orca-<version>-plugin.zip`.
-- `.github/workflows/packages.yml` publishes `@rudironsoni/herdr-orca` to GitHub Packages (`https://npm.pkg.github.com`) when a GitHub Release is published.
+- `ci.yml`: `pnpm test` and `pnpm build` on Ubuntu and macOS.
+- `release.yml`: Release Please. Release PRs squash-merge after CI. The GitHub Release gets `herdr-orca-<version>-plugin.zip`.
+- `packages.yml`: publishes `@rudironsoni/herdr-orca` to GitHub Packages.
 
 ```bash
 pnpm add @rudironsoni/herdr-orca --registry=https://npm.pkg.github.com
 ```
-
-CI does not start Herdr or Orca.
-
-## SDK
-
-PR1 will use `@herdr/sdk` from `github.com/rudironsoni/herdr-ts-sdk` branch `feat/support-protocols-19-and-20`. That git tree does not ship `dist`, so the plugin will pack it or use a `file:` path. Protocol 18 still needs an allowlist change on that branch.

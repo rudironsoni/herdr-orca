@@ -5,13 +5,18 @@ import { parseArgs } from "../src/cli.ts";
 describe("parseArgs", () => {
   it("prints root help for --help", () => {
     assert.equal(parseArgs(["--help"]).kind, "help");
-    assert.equal(parseArgs([]).kind, "help");
+  });
+
+  it("treats no args as open (Orca tab command)", () => {
+    const parsed = parseArgs([]);
+    assert.equal(parsed.kind, "command");
+    if (parsed.kind === "command") assert.equal(parsed.command, "open");
   });
 
   it("rejects unknown commands", () => {
-    const parsed = parseArgs(["sync"]);
+    const parsed = parseArgs(["nope"]);
     assert.equal(parsed.kind, "unknown");
-    if (parsed.kind === "unknown") assert.equal(parsed.command, "sync");
+    if (parsed.kind === "unknown") assert.equal(parsed.command, "nope");
   });
 
   it("parses doctor --json", () => {
@@ -33,6 +38,12 @@ describe("parseArgs", () => {
     const parsed = parseArgs(["launch-agent", "--agent", "claude"]);
     assert.equal(parsed.kind, "command");
     if (parsed.kind === "command") assert.equal(parsed.command, "launch-agent");
+  });
+
+  it("parses root --agent as open", () => {
+    const parsed = parseArgs(["--agent", "claude"]);
+    assert.equal(parsed.kind, "command");
+    if (parsed.kind === "command") assert.equal(parsed.command, "open");
   });
 
   it("parses hook and hooks", () => {
