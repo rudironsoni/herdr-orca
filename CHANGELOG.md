@@ -2,6 +2,19 @@
 
 Release Please writes this file from Conventional Commits when a release PR merges.
 
+## [0.3.0](https://github.com/rudironsoni/herdr-orca/compare/v0.2.1...v0.3.0) (2026-09-03)
+
+
+### Features
+
+* add shim, service, and run docs ([73d04b5](https://github.com/rudironsoni/herdr-orca/commit/73d04b509e7e07b7d2b68b77dda0bb539bc288fb))
+
+
+### Bug Fixes
+
+* reuse herdr workspace for orca cwd ([368664f](https://github.com/rudironsoni/herdr-orca/commit/368664fa40e09dd61b423312dfacbf984b4e74a3))
+* run daemon ensure on plugin install ([50f301f](https://github.com/rudironsoni/herdr-orca/commit/50f301f423e768ff140e0b78b2b3d3165cc1ed95))
+
 ## [0.2.1](https://github.com/rudironsoni/herdr-orca/compare/v0.2.0...v0.2.1) (2026-09-03)
 
 

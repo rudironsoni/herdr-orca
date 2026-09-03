@@ -1,6 +1,6 @@
 id = "rudironsoni.herdr-orca-sync"
 name = "Herdr Orca Sync"
-version = "0.2.1"
+version = "0.3.0"
 description = "Attach stock Orca tabs to Herdr-owned terminals."
 min_herdr_version = "0.7.5"
 platforms = ["macos", "linux", "windows"]
